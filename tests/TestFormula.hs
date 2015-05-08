@@ -9,63 +9,38 @@ import Data.List
 import Data.Ord
 
 import Control.Monad (liftM, liftM2)
-import Text.Show.Functions
+-- import Text.Show.Functions
 
-main = defaultMain tests
-
-tests :: TestTree
-tests = testGroup "Tests" [properties, unitTests]
-
-properties :: TestTree
-properties = testGroup "Properties" [scProps, qcProps]
-
-scProps = testGroup "(checked by SmallCheck)"
-  [ SC.testProperty "sort == sort . reverse" $
-      \list -> sort (list :: [Int]) == sort (reverse list)
-  , SC.testProperty "Fermat's little theorem" $
-      \x -> ((x :: Integer)^7 - x) `mod` 7 == 0
-  -- the following property does not hold
-  , SC.testProperty "Fermat's last theorem" $
-      \x y z n ->
-        (n :: Integer) >= 3 SC.==> x^n + y^n /= (z^n :: Integer)
-  ]
-
-qcProps = testGroup "(checked by QuickCheck)"
-  [ QC.testProperty "sort == sort . reverse" $
-      \list -> sort (list :: [Int]) == sort (reverse list)
-  , QC.testProperty "Fermat's little theorem" $
-      \x -> ((x :: Integer)^7 - x) `mod` 7 == 0
-  -- the following property does not hold
-  , QC.testProperty "Fermat's last theorem" $
-      \x y z n ->
-        (n :: Integer) >= 3 QC.==> x^n + y^n /= (z^n :: Integer)
-  ]
-
-unitTests = testGroup "Unit tests"
-  [ testCase "List comparison (different length)" $
-      [1, 2, 3] `compare` [1,2] @?= GT
-
-  -- the following test does not hold
-  , testCase "List comparison (same length)" $
-      [1, 2, 3] `compare` [1,2,2] @?= LT
-  ]
+-- main = defaultMain tests
+main = defaultMain $ formulaFunctorLaws
 
 
 -- ----------------------------------------------------------------------------
 -- ----------------------------------------------------------------------------
--- Tests
+-- QuickCheck Tests
+
+formulaFunctorLaws = testGroup "Formula Functor Laws"
+    [ QC.testProperty "Formula Functor Law 1"
+        ((\fm -> fmap id fm == id fm ) :: Formula Int -> Bool)
+    , QC.testProperty "Formula Functor Law 2"
+        ((\ p q fm -> fmap (p . q) fm == fmap p (fmap q fm)) :: (Int -> Int) -> (Int -> Int) -> Formula Int -> Bool)
+    ]
+
+-- ----------------------------------------------------------------------------
+-- ----------------------------------------------------------------------------
+-- QuickCheck Test Preparation
 
 -- create a new wrapper for variable values for better control
--- of the distrubution
-newtype VarID = VarID { unVarID :: Int } deriving (Eq, Read, Show)
+-- of the distrubution intervall
+newtype TInt = TInt  Int deriving (Eq, Read, Show)
 
 -- make id type and formula instance of class arbitrary for data generation
-instance Arbitrary VarID where
-    arbitrary = sized varid'
+instance Arbitrary TInt where
+    arbitrary = sized tint'
       where
-        varid' n = do
+        tint' n = do
             x <- choose (0,n)
-            return . VarID $ x
+            return . TInt $ x
 
 instance Arbitrary a => Arbitrary (Formula a) where
     arbitrary = sized formula'
@@ -82,9 +57,8 @@ instance Arbitrary a => Arbitrary (Formula a) where
                       ]
         subformula n = formula' (n `div` 2)
 
--- sample (arbitrary :: Gen Formula)
-prop_FunctorLaw1 :: Formula Int -> Bool
-prop_FunctorLaw1 fm = fmap id fm == id fm
+-- to get the impression of the produced data:
+-- sample ((arbitrary) :: Gen (Formula Int))
 
-prop_FunctorLaw2 :: (Int -> Int) -> (Int -> Int) -> Formula Int -> Bool
-prop_FunctorLaw2 p q fm = fmap (p . q) fm == fmap p (fmap q fm)
+-- ----------------------------------------------------------------------------
+-- ----------------------------------------------------------------------------
