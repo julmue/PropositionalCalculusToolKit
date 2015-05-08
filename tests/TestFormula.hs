@@ -7,6 +7,7 @@ import Test.Tasty.HUnit
 
 import Data.List
 import Data.Ord
+import Data.Map
 
 import Control.Monad (liftM, liftM2)
 -- import Text.Show.Functions
@@ -15,6 +16,8 @@ import Control.Monad (liftM, liftM2)
 main = defaultMain $ testGroup "tests"
     [ formulaFunctorLaws
     , atomsTests
+    , domainTests
+    , modelsTests
     ]
 
 
@@ -39,6 +42,17 @@ atomsTests = testGroup "atoms tests"
     , testCase "AtomsImp2" $    [1]   @=? atoms (Imp (Atom 1) (Atom 1))
     , testCase "atomsIff1" $    [1,2] @=? atoms (Iff (Atom 1) (Atom 2))
     , testCase "AtomsIff2" $    [1]   @=? atoms (Iff (Atom 1) (Atom 1))
+    ]
+
+domainTests = testGroup "domain test"
+    [ testCase "domain1" $  2 @=? length (domain (Atom 1))
+    , testCase "domain2" $  2 @=? length (domain (And (Atom 1) (Atom 1)))
+    , testCase "domain2" $  4 @=? length (domain (And (Atom 1) (Atom 2)))
+    ]
+
+modelsTests = testGroup "models test"
+    [ testCase "modelsAtom1" $  1 @=? length (models (Atom 1))
+    , testCase "modelsAtom2" $  [[(1,True)]] @=? (fmap fromList (models (Atom 1)))
     ]
 
 -- ----------------------------------------------------------------------------

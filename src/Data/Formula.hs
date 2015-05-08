@@ -2,8 +2,8 @@ module Data.Formula
 where
 
 import Prelude hiding (lookup)
-import Data.List (nub)
-import Data.Map (Map, lookup)
+import Data.List (nub, groupBy)
+import Data.Map (Map, lookup, fromList)
 import Control.Applicative ((<$>),(<*>))
 
 data Formula a
@@ -61,7 +61,14 @@ eval assgFN fm = case fm of
     Iff sfm1 sfm2 -> (==) <$> (e sfm1) <*> (e sfm2)
   where e = eval assgFN
 
+domain :: Formula Int -> [AssgFN]
+domain = fmap fromList . sequence . groupBy equalAtom . (flip cartProd) [True,False] . atoms
+  where
+    cartProd a b = (,) <$> a <*> b
+    equalAtom = (\x y -> fst x == fst y)
 
+models :: Formula Int -> [AssgFN]
+models fm = [ m | m <- domain fm, eval m fm == Just True ]
 
 -- TODO:
 --  * is Formula a a monoid?
