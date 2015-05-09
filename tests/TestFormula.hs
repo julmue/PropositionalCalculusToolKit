@@ -14,6 +14,7 @@ main = defaultMain $ testGroup "tests"
     , atomsTests
     , domainTests
     , modelsTests
+    , cnfTests
     ]
 
 
@@ -50,6 +51,14 @@ modelsTests = testGroup "models test"
     [ testCase "modelsAtom1" $  1 @=? length (models (Atom 1))
 --    , testCase "modelsAtom2" $  [[(1,True)]] @=? (fmap fromList (models (Atom 1)))
     ]
+
+
+
+cnfTests = testGroup "cnf test"
+    [ QC.testProperty "semantic equality"
+        ((\fm -> domain fm == domain (cnf fm)) :: (Formula Int) -> Bool)
+    ]
+
 
 -- ----------------------------------------------------------------------------
 -- ----------------------------------------------------------------------------

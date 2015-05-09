@@ -18,6 +18,10 @@ data Formula a
 instance Functor Formula where
     fmap = onAtoms
 
+type AssgFN = Map Int Bool
+type Error = String
+type DIMACS = [[Int]]
+
 onAtoms :: (a -> b) -> Formula a -> Formula b
 onAtoms fn fm = case fm of
     Atom x -> Atom . fn $ x
@@ -47,10 +51,6 @@ overAtoms fn fm b = case fm of
 
 atoms :: (Eq a) => Formula a -> [a]
 atoms = nub . flip (overAtoms (:)) []
-
-type AssgFN = Map Int Bool
-type Error = String
-type DIMACS = [[Int]]
 
 eval :: AssgFN -> Formula Int -> Maybe Bool
 eval assgFN fm = case fm of
@@ -100,7 +100,7 @@ dimacs = (fmap . fmap) fn
   where
     fn (Atom i)       = i
     fn (Not (Atom i)) = -i
-    _ = error "dimacs: formula is not a literal"
+    fn _ = error "dimacs: formula is not a literal"
 
 -- TODO:
 --  * is Formula a a monoid?
