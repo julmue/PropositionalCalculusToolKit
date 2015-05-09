@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses #-}
+
 import Data.Formula
 
 import Test.Tasty
@@ -5,7 +7,12 @@ import Test.Tasty.SmallCheck as SC
 import Test.Tasty.QuickCheck as QC
 import Test.Tasty.HUnit
 
+-- import necessary to generate test values for own types
+import Test.SmallCheck.Series
+
 import Control.Monad (liftM, liftM2)
+import Control.Applicative ((<$>), (<*>), pure)
+import Control.Applicative (empty)
 
 import Data.Word (Word)
 
@@ -69,14 +76,6 @@ cnfTests = testGroup "cnf test"
 -- of the distrubution intervall
 -- newtype TInt = TInt  Int deriving (Eq, Read, Show)
 
--- make id type and formula instance of class arbitrary for data generation
--- instance Arbitrary Word where
---     arbitrary = sized tint'
---       where
---         tint' n = do
---             x <- choose (0,maxBound)
---             return x
-
 instance Arbitrary a => Arbitrary (Formula a) where
     arbitrary = sized formula'
       where
@@ -91,6 +90,12 @@ instance Arbitrary a => Arbitrary (Formula a) where
                       , liftM2 Iff subf subf
                       ]
         subformula n = formula' (n `div` 2)
+
+instance (Monad m) => Serial m Word where
+  series =
+    generate (\d -> if d >= 0 then pure 0 else empty)
+    where
+      nats = generate $ \d -> [1..d]
 
 -- to get the impression of the produced data:
 -- sample ((arbitrary) :: Gen (Formula Int))
