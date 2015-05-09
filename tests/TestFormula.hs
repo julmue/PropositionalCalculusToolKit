@@ -6,9 +6,10 @@ import Test.Tasty.QuickCheck as QC
 import Test.Tasty.HUnit
 
 import Control.Monad (liftM, liftM2)
--- import Text.Show.Functions
 
--- main = defaultMain tests
+import Data.Word (Word)
+
+-- ----------------------------------------------------------------------------
 main = defaultMain $ testGroup "tests"
     [ formulaFunctorLaws
     , atomsTests
@@ -20,10 +21,10 @@ main = defaultMain $ testGroup "tests"
 
 -- ----------------------------------------------------------------------------
 formulaFunctorLaws = testGroup "Formula Functor laws tests"
-    [ QC.testProperty "Formula Functor Law 1"
-        ((\fm -> fmap id fm == id fm ) :: Formula Int -> Bool)
+     [ QC.testProperty "Formula Functor Law 1"
+        ((\fm -> fmap id fm == id fm ) :: Formula VarID -> Bool)
     , QC.testProperty "Formula Functor Law 2"
-        ((\ p q fm -> fmap (p . q) fm == fmap p (fmap q fm)) :: (Int -> Int) -> (Int -> Int) -> Formula Int -> Bool)
+        ((\ p q fm -> fmap (p . q) fm == fmap p (fmap q fm)) :: (VarID -> VarID) -> (VarID -> VarID) -> Formula VarID -> Bool)
     ]
 
 
@@ -56,7 +57,7 @@ modelsTests = testGroup "models test"
 
 cnfTests = testGroup "cnf test"
     [ QC.testProperty "semantic equality"
-        ((\fm -> domain fm == domain (cnf fm)) :: (Formula Int) -> Bool)
+        ((\fm -> domain fm == domain (cnf fm)) :: (Formula VarID) -> Bool)
     ]
 
 
@@ -66,15 +67,15 @@ cnfTests = testGroup "cnf test"
 
 -- create a new wrapper for variable values for better control
 -- of the distrubution intervall
-newtype TInt = TInt  Int deriving (Eq, Read, Show)
+-- newtype TInt = TInt  Int deriving (Eq, Read, Show)
 
 -- make id type and formula instance of class arbitrary for data generation
-instance Arbitrary TInt where
-    arbitrary = sized tint'
-      where
-        tint' n = do
-            x <- choose (0,n)
-            return . TInt $ x
+-- instance Arbitrary Word where
+--     arbitrary = sized tint'
+--       where
+--         tint' n = do
+--             x <- choose (0,maxBound)
+--             return x
 
 instance Arbitrary a => Arbitrary (Formula a) where
     arbitrary = sized formula'

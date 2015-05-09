@@ -2,9 +2,12 @@ module Data.Formula
 where
 
 import Prelude hiding (lookup)
+
+import Control.Applicative ((<$>),(<*>))
+
+import Data.Word (Word)
 import Data.List (nub, groupBy)
 import Data.Map (Map, lookup, fromList, toList)
-import Control.Applicative ((<$>),(<*>))
 
 data Formula a
     = Atom a
@@ -18,8 +21,9 @@ data Formula a
 instance Functor Formula where
     fmap = onAtoms
 
-type AssgFN = Map Int Bool
-type Error = String
+type VarID  = Word
+type AssgFN = Map Word Bool
+type Error  = String
 type DIMACS = [[Int]]
 
 onAtoms :: (a -> b) -> Formula a -> Formula b
@@ -52,26 +56,29 @@ overAtoms fn fm b = case fm of
 atoms :: (Eq a) => Formula a -> [a]
 atoms = nub . flip (overAtoms (:)) []
 
-eval :: AssgFN -> Formula Int -> Maybe Bool
+eval :: AssgFN -> Formula VarID -> Maybe Bool
 eval assgFN fm = case fm of
-    Atom i -> lookup i assgFN
+    Atom w -> lookup w assgFN
     Not sfm -> e  sfm
     And sfm1 sfm2 -> (&&) <$> (e sfm1) <*> (e sfm2)
     Or  sfm1 sfm2 -> (||) <$> (e sfm1) <*> (e sfm2)
     Imp sfm1 sfm2 -> (<=) <$> (e sfm1) <*> (e sfm2)
     Iff sfm1 sfm2 -> (==) <$> (e sfm1) <*> (e sfm2)
-  where e = eval assgFN
+  where
+    e = eval assgFN
 
-domain :: Formula Int -> [AssgFN]
+
+
+domain :: Formula VarID -> [AssgFN]
 domain = fmap fromList . sequence . groupBy equalAtom . (flip cartProd) [True,False] . atoms
   where
     cartProd a b = (,) <$> a <*> b
     equalAtom = (\x y -> fst x == fst y)
 
-models :: Formula Int -> [AssgFN]
+models :: Formula VarID -> [AssgFN]
 models fm = [ m | m <- domain fm, eval m fm == Just True ]
 
-nonModels :: Formula Int -> [AssgFN]
+nonModels :: Formula VarID -> [AssgFN]
 nonModels fm = [ nm | nm <- domain fm, eval nm fm == Just False ]
 
 twin :: AssgFN -> AssgFN
@@ -83,23 +90,23 @@ allAnd = foldr1 And
 allOr :: [Formula a] -> Formula a
 allOr = foldr1 Or
 
-literals :: AssgFN -> [Formula Int]
+literals :: AssgFN -> [Formula VarID]
 literals = fmap lit . toList
         where
           lit (i, True) = Atom i
           lit (i, False) = (Not . Atom) i
 
-cnfLiterals :: Formula Int -> [[Formula Int]]
+cnfLiterals :: Formula VarID -> [[Formula VarID]]
 cnfLiterals = fmap (literals . twin) . nonModels
 
-cnf :: Formula Int -> Formula Int
+cnf :: Formula VarID -> Formula VarID
 cnf = allAnd . fmap allOr . cnfLiterals
 
-dimacs :: [[Formula Int]] -> DIMACS
+dimacs :: [[Formula VarID]] -> DIMACS
 dimacs = (fmap . fmap) fn
   where
-    fn (Atom i)       = i
-    fn (Not (Atom i)) = -i
+    fn (Atom i)       = fromIntegral i
+    fn (Not (Atom i)) = (negate. fromIntegral) i
     fn _ = error "dimacs: formula is not a literal"
 
 -- TODO:
