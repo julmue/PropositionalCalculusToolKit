@@ -98,6 +98,8 @@ cnfTests =
         ((\fm -> (sort . atoms) fm == (sort . atoms) (cnf fm)) :: (Formula VarID) -> Bool)
     , QC.testProperty "semantic equality"
         ((\fm -> (sort . models) fm == (sort . models) (cnf fm)) :: (Formula VarID) -> Bool)
+    , QC.testProperty "equal set of atoms"
+        ((\fm -> (sort . atoms) fm == (sort . atoms) (cnf fm)) :: (Formula VarID) -> Bool)
     ]
 
 -- ----------------------------------------------------------------------------
@@ -128,8 +130,7 @@ instance (Monad m) => Serial m Word where
     where
       nats = generate $ \d -> [1..]
 
--- to check the generated values: list x series :: [VarID] (where x is some concrete Int -- the depth parameter)
-
+-- to check the generated values: list x series :: [Formula VarID] (where x is some concrete Int -- the depth parameter)
 instance Serial m a => Serial m (Formula a) where
   series =  cons1 Atom \/ cons1 Not \/ cons2 And \/ cons2 Or \/ cons2 Imp \/ cons2 Iff
 
