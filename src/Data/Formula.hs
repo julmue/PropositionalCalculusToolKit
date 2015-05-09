@@ -3,7 +3,7 @@ where
 
 import Prelude hiding (lookup)
 import Data.List (nub, groupBy)
-import Data.Map (Map, lookup, fromList)
+import Data.Map (Map, lookup, fromList, toList)
 import Control.Applicative ((<$>),(<*>))
 
 data Formula a
@@ -50,6 +50,7 @@ atoms = nub . flip (overAtoms (:)) []
 
 type AssgFN = Map Int Bool
 type Error = String
+type DIMACS = [[Int]]
 
 eval :: AssgFN -> Formula Int -> Maybe Bool
 eval assgFN fm = case fm of
@@ -69,6 +70,37 @@ domain = fmap fromList . sequence . groupBy equalAtom . (flip cartProd) [True,Fa
 
 models :: Formula Int -> [AssgFN]
 models fm = [ m | m <- domain fm, eval m fm == Just True ]
+
+nonModels :: Formula Int -> [AssgFN]
+nonModels fm = [ nm | nm <- domain fm, eval nm fm == Just False ]
+
+twin :: AssgFN -> AssgFN
+twin = fmap not
+
+allAnd :: [Formula a] -> Formula a
+allAnd = foldr1 And
+
+allOr :: [Formula a] -> Formula a
+allOr = foldr1 Or
+
+literals :: AssgFN -> [Formula Int]
+literals = fmap lit . toList
+        where
+          lit (i, True) = Atom i
+          lit (i, False) = (Not . Atom) i
+
+cnfLiterals :: Formula Int -> [[Formula Int]]
+cnfLiterals = fmap (literals . twin) . nonModels
+
+cnf :: Formula Int -> Formula Int
+cnf = allAnd . fmap allOr . cnfLiterals
+
+dimacs :: [[Formula Int]] -> DIMACS
+dimacs = (fmap . fmap) fn
+  where
+    fn (Atom i)       = i
+    fn (Not (Atom i)) = -i
+    _ = error "dimacs: formula is not a literal"
 
 -- TODO:
 --  * is Formula a a monoid?

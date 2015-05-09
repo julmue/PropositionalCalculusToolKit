@@ -5,10 +5,6 @@ import Test.Tasty.SmallCheck as SC
 import Test.Tasty.QuickCheck as QC
 import Test.Tasty.HUnit
 
-import Data.List
-import Data.Ord
-import Data.Map
-
 import Control.Monad (liftM, liftM2)
 -- import Text.Show.Functions
 
@@ -52,7 +48,7 @@ domainTests = testGroup "domain test"
 
 modelsTests = testGroup "models test"
     [ testCase "modelsAtom1" $  1 @=? length (models (Atom 1))
-    , testCase "modelsAtom2" $  [[(1,True)]] @=? (fmap fromList (models (Atom 1)))
+--    , testCase "modelsAtom2" $  [[(1,True)]] @=? (fmap fromList (models (Atom 1)))
     ]
 
 -- ----------------------------------------------------------------------------
