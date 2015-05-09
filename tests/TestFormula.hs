@@ -15,11 +15,14 @@ import Control.Applicative ((<$>), (<*>), pure)
 import Control.Applicative (empty)
 
 import Data.Word (Word)
+import Data.List (sort)
+import Data.Map (Map, fromList, toList)
 
 -- ----------------------------------------------------------------------------
 main = defaultMain $ testGroup "tests"
     [ formulaFunctorLaws
     , atomsTests
+    , evalTests
     , domainTests
     , modelsTests
     , cnfTests
@@ -49,33 +52,57 @@ atomsTests = testGroup "atoms tests"
     , testCase "AtomsIff2" $    [1]   @=? atoms (Iff (Atom 1) (Atom 1))
     ]
 
+
+-- ----------------------------------------------------------------------------
+evalTests = testGroup "eval tests"
+    [ evalAtomTests
+    , evalNotTests
+    ]
+
+-- ----------------------------------------------------------------------------
+evalAtomTests = testGroup "eval Atom tests"
+    [ testCase "evalAtoms1" $ Just True     @=? eval (m [(1,True)]) (Atom 1)
+    , testCase "evalAtoms1" $ Just False    @=? eval (m [(1,False)]) (Atom 1)
+    ]
+  where m = fromList
+
+-- ----------------------------------------------------------------------------
+evalNotTests = testGroup "eval Not tests"
+    [ testCase "evalNot1" $ Just False     @=? eval (m [(1,True)]) (Not (Atom 1))
+    , testCase "evalNot1" $ Just True    @=? eval (m [(1,False)]) (Not (Atom 1))
+    ]
+  where m = fromList
+
+-- ----------------------------------------------------------------------------
 domainTests = testGroup "domain test"
     [ testCase "domain1" $  2 @=? length (domain (Atom 1))
     , testCase "domain2" $  2 @=? length (domain (And (Atom 1) (Atom 1)))
     , testCase "domain2" $  4 @=? length (domain (And (Atom 1) (Atom 2)))
     ]
 
+-- ----------------------------------------------------------------------------
 modelsTests = testGroup "models test"
     [ testCase "modelsAtom1" $  1 @=? length (models (Atom 1))
---    , testCase "modelsAtom2" $  [[(1,True)]] @=? (fmap fromList (models (Atom 1)))
+    , testCase "modelsAtom2" $ [[(1,True)]] @=? (fmap toList . models $ Atom 1)
     ]
 
-
-
-cnfTests = testGroup "cnf test"
-    [ QC.testProperty "semantic equality"
-        ((\fm -> domain fm == domain (cnf fm)) :: (Formula VarID) -> Bool)
+-- ----------------------------------------------------------------------------
+cnfTests =
+    localOption (SmallCheckDepth 3) $
+    localOption (QuickCheckTests 100) $
+    localOption (QuickCheckMaxSize 7) $
+    testGroup "cnf test"
+    [ SC.testProperty "semantic equality"
+        ((\fm -> (sort . models) fm == (sort . models) (cnf fm)) :: (Formula VarID) -> Bool)
+    , SC.testProperty "equal set of atoms"
+        ((\fm -> (sort . atoms) fm == (sort . atoms) (cnf fm)) :: (Formula VarID) -> Bool)
+    , QC.testProperty "semantic equality"
+        ((\fm -> (sort . models) fm == (sort . models) (cnf fm)) :: (Formula VarID) -> Bool)
     ]
-
 
 -- ----------------------------------------------------------------------------
 -- ----------------------------------------------------------------------------
 -- QuickCheck Test Preparation
-
--- create a new wrapper for variable values for better control
--- of the distrubution intervall
--- newtype TInt = TInt  Int deriving (Eq, Read, Show)
-
 instance Arbitrary a => Arbitrary (Formula a) where
     arbitrary = sized formula'
       where
@@ -91,14 +118,20 @@ instance Arbitrary a => Arbitrary (Formula a) where
                       ]
         subformula n = formula' (n `div` 2)
 
+-- to get the impression of the produced data:
+-- sample ((arbitrary) :: Gen (Formula VarID))
+
+-- Smallcheck Test Preparation
 instance (Monad m) => Serial m Word where
   series =
-    generate (\d -> if d >= 0 then pure 0 else empty)
+    generate (\d -> if d >= 0 then pure (fromIntegral d) else empty)
     where
-      nats = generate $ \d -> [1..d]
+      nats = generate $ \d -> [1..]
 
--- to get the impression of the produced data:
--- sample ((arbitrary) :: Gen (Formula Int))
+-- to check the generated values: list x series :: [VarID] (where x is some concrete Int -- the depth parameter)
+
+instance Serial m a => Serial m (Formula a) where
+  series =  cons1 Atom \/ cons1 Not \/ cons2 And \/ cons2 Or \/ cons2 Imp \/ cons2 Iff
 
 -- ----------------------------------------------------------------------------
 -- ----------------------------------------------------------------------------

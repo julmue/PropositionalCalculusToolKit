@@ -59,7 +59,7 @@ atoms = nub . flip (overAtoms (:)) []
 eval :: AssgFN -> Formula VarID -> Maybe Bool
 eval assgFN fm = case fm of
     Atom w -> lookup w assgFN
-    Not sfm -> e  sfm
+    Not sfm -> not <$> (e sfm)
     And sfm1 sfm2 -> (&&) <$> (e sfm1) <*> (e sfm2)
     Or  sfm1 sfm2 -> (||) <$> (e sfm1) <*> (e sfm2)
     Imp sfm1 sfm2 -> (<=) <$> (e sfm1) <*> (e sfm2)
@@ -97,7 +97,9 @@ literals = fmap lit . toList
           lit (i, False) = (Not . Atom) i
 
 cnfLiterals :: Formula VarID -> [[Formula VarID]]
-cnfLiterals = fmap (literals . twin) . nonModels
+cnfLiterals fm = case nonModels fm of
+    [] -> fmap (\w -> [Atom w, (Not . Atom) w]) . atoms $ fm
+    nms -> fmap (literals .twin) $ nms
 
 cnf :: Formula VarID -> Formula VarID
 cnf = allAnd . fmap allOr . cnfLiterals
