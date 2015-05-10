@@ -68,8 +68,6 @@ eval assgFN fm = case fm of
   where
     e = eval assgFN
 
-
-
 domain :: Formula VarID -> [AssgFN]
 domain = fmap fromList . sequence . groupBy equalAtom . (flip cartProd) [True,False] . atoms
   where
@@ -106,25 +104,18 @@ cnf :: Formula VarID -> Formula VarID
 cnf = allAnd . fmap allOr . cnfLiterals
 
 -- ------------------------------------------------------------------------------------
---tseitin :: Formula VarID -> Formula VarID
-
 tseitin :: Formula VarID -> Formula VarID
-tseitin = allAnd . fmap (cnf . bicond2fm) . bicond
-  where
-    bicond2fm (BiCond w fm) = Iff (Atom w) fm
+tseitin a@(Atom _) = a
+tseitin fm = allAnd . fmap cnf . bicond $ fm
 
-data BiCond = BiCond Word (Formula Word) deriving Show
-
-bicond :: Formula VarID -> [BiCond]
-bicond a@(Atom i) = [BiCond i a]
-bicond fm = bicond' rootID fm
+bicond fm = (Atom rootID) : bicond' rootID fm
     where rootID = (succ . maximum . atoms) fm
 
 bicond' nodeID fm = case fm of
     Atom _ -> []
-    Not (Atom _) -> [BiCond nodeID fm]
+    Not (Atom _) -> [Iff (Atom nodeID) fm]
     Not sfm -> let newID = enumL nodeID
-               in  [BiCond nodeID (Not (Atom newID))] ++ bicond' newID sfm
+               in  [Iff (Atom nodeID) (Not (Atom newID))] ++ bicond' newID sfm
     And sfm1 sfm2 -> binFunc nodeID (And,sfm1,sfm2)
     Or  sfm1 sfm2 -> binFunc nodeID (Or ,sfm1,sfm2)
     Imp sfm1 sfm2 -> binFunc nodeID (Imp,sfm1,sfm2)
@@ -133,19 +124,16 @@ bicond' nodeID fm = case fm of
     binFunc nodeID' (func, sfm1, sfm2) =
        let (nodeIDL, bcsL) = fn enumL nodeID' sfm1
            (nodeIDR, bcsR) = fn enumR nodeID' sfm2
-       in [ BiCond nodeID' (func (Atom nodeIDL) (Atom nodeIDR))] ++ bcsL ++ bcsR
+       in [ Iff (Atom nodeID') (func (Atom nodeIDL) (Atom nodeIDR))] ++ bcsL ++ bcsR
     fn enumerator nodeID' fm = case fm of
         Atom i -> (i,[])
         _ -> (enumerator nodeID', bicond' (enumerator nodeID') fm)
-
--- tree enumerators
-enumL :: Word -> Word
-enumL = flip shift 1
-enumR :: Word -> Word
-enumR = flip setBit 0 . flip shift 1
+    enumL :: Word -> Word
+    enumL = flip shift 1
+    enumR :: Word -> Word
+    enumR = flip setBit 0 . flip shift 1
 
 -- ------------------------------------------------------------------------------------
-
 dimacs :: [[Formula VarID]] -> DIMACS
 dimacs = (fmap . fmap) fn
   where
