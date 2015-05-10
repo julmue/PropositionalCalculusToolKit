@@ -108,35 +108,35 @@ cnf = allAnd . fmap allOr . cnfLiterals
 -- ------------------------------------------------------------------------------------
 --tseitin :: Formula VarID -> Formula VarID
 
-tseitin = fmap cnf . bicond
-
-bicond fm =
-    let offset = (maximum . atoms) fm
-    in  bicond' offset 1 fm
-
-bicond' offset n fm = case fm of
-    Atom _ -> []
-    Not sfm1 ->
-        let newID = n + offset
-        in  case sfm1 of
-                a@(Atom i) -> [ Iff (Atom newID) (Not a)]
-                _ -> let nSfm1 = enumL n
-                     in  [ Iff (Atom newID) (Not (Atom nSfm1)) ] ++ bicond' offset nSfm1 sfm1
-    And sfm1 sfm2 -> binFunc n (And,sfm1,sfm2)
-    Or  sfm1 sfm2 -> binFunc n (Or ,sfm1,sfm2)
-    Imp sfm1 sfm2 -> binFunc n (Imp,sfm1,sfm2)
-    Iff sfm1 sfm2 -> binFunc n (Iff,sfm1,sfm2)
+tseitin :: Formula VarID -> Formula VarID
+tseitin = allAnd . fmap (cnf . bicond2fm) . bicond
   where
-    binFunc n (f, sfm1, sfm2) =
-        let newID = n + offset
-            (nSfm1, x) = fn enumL n sfm1
-            (nSfm2, y) = fn enumR n sfm2
-        in [ Iff (Atom newID) (f (Atom nSfm1) (Atom nSfm2)) ]
-            ++ x
-            ++ y
-    fn counter n fm = case fm of
-        (Atom i) -> (i,[])
-        _ -> (counter n, bicond' offset (counter n) fm)
+    bicond2fm (BiCond w fm) = Iff (Atom w) fm
+
+data BiCond = BiCond Word (Formula Word) deriving Show
+
+bicond :: Formula VarID -> [BiCond]
+bicond a@(Atom i) = [BiCond i a]
+bicond fm = bicond' rootID fm
+    where rootID = (succ . maximum . atoms) fm
+
+bicond' nodeID fm = case fm of
+    Atom _ -> []
+    Not (Atom _) -> [BiCond nodeID fm]
+    Not sfm -> let newID = enumL nodeID
+               in  [BiCond nodeID (Not (Atom newID))] ++ bicond' newID sfm
+    And sfm1 sfm2 -> binFunc nodeID (And,sfm1,sfm2)
+    Or  sfm1 sfm2 -> binFunc nodeID (Or ,sfm1,sfm2)
+    Imp sfm1 sfm2 -> binFunc nodeID (Imp,sfm1,sfm2)
+    Iff sfm1 sfm2 -> binFunc nodeID (Iff,sfm1,sfm2)
+  where
+    binFunc nodeID' (func, sfm1, sfm2) =
+       let (nodeIDL, bcsL) = fn enumL nodeID' sfm1
+           (nodeIDR, bcsR) = fn enumR nodeID' sfm2
+       in [ BiCond nodeID' (func (Atom nodeIDL) (Atom nodeIDR))] ++ bcsL ++ bcsR
+    fn enumerator nodeID' fm = case fm of
+        Atom i -> (i,[])
+        _ -> (enumerator nodeID', bicond' (enumerator nodeID') fm)
 
 -- tree enumerators
 enumL :: Word -> Word
