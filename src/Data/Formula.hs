@@ -7,7 +7,8 @@ import Control.Applicative ((<$>),(<*>))
 
 import Data.Word (Word)
 import Data.List (nub, groupBy)
-import Data.Map (Map, lookup, fromList, toList)
+import Data.Map  (Map, lookup, fromList, toList)
+import Data.Bits (shift, setBit)
 
 data Formula a
     = Atom a
@@ -103,6 +104,47 @@ cnfLiterals fm = case nonModels fm of
 
 cnf :: Formula VarID -> Formula VarID
 cnf = allAnd . fmap allOr . cnfLiterals
+
+-- ------------------------------------------------------------------------------------
+--tseitin :: Formula VarID -> Formula VarID
+
+tseitin = fmap cnf . bicond
+
+bicond fm =
+    let offset = (maximum . atoms) fm
+    in  bicond' offset 1 fm
+
+bicond' offset n fm = case fm of
+    Atom _ -> []
+    Not sfm1 ->
+        let newID = n + offset
+        in  case sfm1 of
+                a@(Atom i) -> [ Iff (Atom newID) (Not a)]
+                _ -> let nSfm1 = enumL n
+                     in  [ Iff (Atom newID) (Not (Atom nSfm1)) ] ++ bicond' offset nSfm1 sfm1
+    And sfm1 sfm2 -> binFunc n (And,sfm1,sfm2)
+    Or  sfm1 sfm2 -> binFunc n (Or ,sfm1,sfm2)
+    Imp sfm1 sfm2 -> binFunc n (Imp,sfm1,sfm2)
+    Iff sfm1 sfm2 -> binFunc n (Iff,sfm1,sfm2)
+  where
+    binFunc n (f, sfm1, sfm2) =
+        let newID = n + offset
+            (nSfm1, x) = fn enumL n sfm1
+            (nSfm2, y) = fn enumR n sfm2
+        in [ Iff (Atom newID) (f (Atom nSfm1) (Atom nSfm2)) ]
+            ++ x
+            ++ y
+    fn counter n fm = case fm of
+        (Atom i) -> (i,[])
+        _ -> (counter n, bicond' offset (counter n) fm)
+
+-- tree enumerators
+enumL :: Word -> Word
+enumL = flip shift 1
+enumR :: Word -> Word
+enumR = flip setBit 0 . flip shift 1
+
+-- ------------------------------------------------------------------------------------
 
 dimacs :: [[Formula VarID]] -> DIMACS
 dimacs = (fmap . fmap) fn
