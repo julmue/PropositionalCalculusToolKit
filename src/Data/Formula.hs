@@ -3,9 +3,6 @@ where
 
 import Prelude hiding (lookup)
 
-import Control.Applicative ((<$>),(<*>))
-
-import Data.Word (Word)
 import Data.List (nub, groupBy)
 import Data.Map  (Map, lookup, fromList, toList)
 import Data.Bits (shift, setBit)
@@ -28,13 +25,15 @@ type Error  = String
 type DIMACS = [[Int]]
 
 onAtoms :: (a -> b) -> Formula a -> Formula b
-onAtoms fn fm = case fm of
-    Atom x -> Atom . fn $ x
-    Not sfm -> Not $ onAtoms fn sfm
-    And sfm1 sfm2 -> And (onAtoms fn sfm1) (onAtoms fn sfm2)
-    Or  sfm1 sfm2 -> Or  (onAtoms fn sfm1) (onAtoms fn sfm2)
-    Imp sfm1 sfm2 -> Imp (onAtoms fn sfm1) (onAtoms fn sfm2)
-    Iff sfm1 sfm2 -> Iff (onAtoms fn sfm1) (onAtoms fn sfm2)
+onAtoms f fm = case fm of
+    Atom x -> Atom (f x)
+    Not p -> Not $ oa p
+    And p q -> And (oa p) (oa q)
+    Or  p q -> Or  (oa p) (oa q)
+    Imp p q -> Imp (oa p) (oa q)
+    Iff p q -> Iff (oa p) (oa q)
+  where
+    oa = onAtoms f
 
 onFormulas :: (Formula a -> Formula a) -> Formula a -> Formula a
 onFormulas fn fm = case fm of
@@ -108,9 +107,11 @@ tseitin :: Formula VarID -> Formula VarID
 tseitin a@(Atom _) = a
 tseitin fm = allAnd . fmap cnf . bicond $ fm
 
+bicond :: Formula Word -> [Formula Word]
 bicond fm = (Atom rootID) : bicond' rootID fm
     where rootID = (succ . maximum . atoms) fm
 
+bicond' :: Word -> Formula Word -> [Formula Word]
 bicond' nodeID fm = case fm of
     Atom _ -> []
     Not (Atom _) -> [Iff (Atom nodeID) fm]
@@ -125,7 +126,7 @@ bicond' nodeID fm = case fm of
        let (nodeIDL, bcsL) = fn enumL nodeID' sfm1
            (nodeIDR, bcsR) = fn enumR nodeID' sfm2
        in [ Iff (Atom nodeID') (func (Atom nodeIDL) (Atom nodeIDR))] ++ bcsL ++ bcsR
-    fn enumerator nodeID' fm = case fm of
+    fn enumerator nodeID' f = case f of
         Atom i -> (i,[])
         _ -> (enumerator nodeID', bicond' (enumerator nodeID') fm)
     enumL :: Word -> Word
