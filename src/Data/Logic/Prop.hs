@@ -7,6 +7,9 @@ import Data.List (nub, groupBy)
 import Data.Map  (Map, lookup, fromList, toList)
 import Data.Bits (shift, setBit)
 
+import Test.QuickCheck.Arbitrary
+import Test.QuickCheck.Gen (oneof, sized)
+
 data Formula a
     = Atom a
     | Not (Formula a)
@@ -18,6 +21,22 @@ data Formula a
 
 instance Functor Formula where
     fmap = onAtoms
+
+instance Arbitrary a => Arbitrary (Formula a) where
+    arbitrary = sized formula'
+      where
+        formula' n
+            | n <= 1 =  Atom <$> arbitrary
+            | otherwise  =
+                let subf = subformula n
+                in  oneof [ formula' 0
+                          , Not <$> subf
+                          , And <$> subf <*> subf
+                          , Or  <$> subf <*> subf
+                          , Imp <$> subf <*> subf
+                          , Iff <$> subf <*> subf
+                          ]
+        subformula n = formula' (n `div` 2)
 
 type VarID  = Word
 type AssgFN = Map Word Bool
