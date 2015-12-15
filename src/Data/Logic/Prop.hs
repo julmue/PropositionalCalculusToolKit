@@ -1,4 +1,4 @@
-module Data.Formula
+module Data.Logic.Prop
 where
 
 import Prelude hiding (lookup)

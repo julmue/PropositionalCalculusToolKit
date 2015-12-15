@@ -1,6 +1,6 @@
-name:                Formula
+name:                pctk
 version:             0.1.0.0
-synopsis:            logics framework
+synopsis:            propositional calculus tool kit
 license:             GPL-3
 author:              Julian Müller
 maintainer:          jul.mue@hotmail.de
@@ -15,11 +15,12 @@ library
     ghc-options:
         -Wall -Werror
     exposed-modules:
-        Data.Formula
+        Data.Logic.Prop
     build-depends:
         base,
         containers,
-        transformers
+        transformers,
+        QuickCheck
     default-language:
         Haskell2010
 
